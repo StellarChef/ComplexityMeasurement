@@ -3,6 +3,7 @@ import timeit
 import math
 import sys
 import logging as logs
+import json
 """
 Napisz moduł (klasę, pakiet, itp.), służącą do pomiaru złożoności obliczeniowej
 według wzorów na średnią arytmetyczną, wariancję,
@@ -21,16 +22,20 @@ class ComplexityMeasurement:
     _sum_i = 0
     _iters: int = []
     _times:float = []
-    _avarage_i: float = 0
-    _avarage_t: float = 0
+    avarage_i: float = 0
+    avarage_t: float = 0
+    variance_i: float = 0
+    variance_t: float = 0
+    std_dev_i: float = 0
+    std_dev_t: float = 0
 
     def _tracer(self, frame, event, arg):
         return event, frame.f_code.co_name, frame.f_lineno, arg
 
     def _get_count_of_iterations(self):     
-        sys.settrace(self._tracer)
-        self.data.append(self.algo)
-        sys.settrace(None)  
+        sys.monitoring.events.JUMP
+        self._iters.append(self.algo)
+        sys.monitoring.events
 
     def _getavaragei():
         pass
@@ -38,7 +43,7 @@ class ComplexityMeasurement:
         pass
 
     def measure_time_of_resolving(self):
-        pass
+        return timeit.timeit(self.algo()) * 1000
 
     def _run_n_times(self, n: int) -> list:
         for i in range(n):
@@ -52,16 +57,51 @@ class ComplexityMeasurement:
         sum_t = 0
         for i in iters: sum_i += i
         for t in times: sum_t += t
-
+        self._sum_i = sum_i
+        self._sum_t = sum_t
         return self._sum_t, self._sum_i
 
 
     def _avarage(self, n:int):
-        self._avarage_t = self.sum_i/n
-        self._avarage_i =  self.sum_t/n
-        return self._avarage_i, self._avarage_t
+        self.avarage_t = self.sum_t/n
+        self.avarage_i =  self.sum_i/n
+        return self.avarage_t, self.avarage_i
 
-        
+    def _variance(self,n):
+        sum_i: int = 0
+        sum_t: float = 0
+        for _ in range(n):
+            sum_i += math.pow(self._iters[_] - self.avarage_i, 2) 
+            sum_t += math.pow(self._times[_] - self.avarage_t, 2)
+        self.variance_i = 1/n * sum_i
+        self.variance_t = 1/n * sum_t
 
-    def printresults():
-        pass
+        return self.variance_t, self.variance_i
+
+    def _standard_deviation(self):
+        self.std_dev_i = math.sqrt(self.variance_i)
+        self.std_dev_t = math.sqrt(self.variance_t)
+
+        return self.std_dev_t, self.std_dev_i
+
+    def to_json(self) -> str:
+        results = {
+            "algorithm": getattr(self.algo, "__name__", str(self.algo)),
+            "runs": len(self._iters),
+            "iterations": {
+                "sum": self._sum_i,
+                "average": self.avarage_i,
+                "variance": self.variance_i,
+                "standard_deviation": self.std_dev_i,
+                "measurements": self._iters,
+            },
+            "time": {
+                "sum": self._sum_t,
+                "average": self.avarage_t,
+                "variance": self.variance_t,
+                "standard_deviation": self.std_dev_t,
+                "measurements": self._times,
+            },
+        }
+
+        return json.dumps(results, indent=4, ensure_ascii=False)
