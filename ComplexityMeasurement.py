@@ -1,9 +1,11 @@
+from itertools import count
 import random
 import timeit
 import math
 import sys
 import logging as logs
 import json
+
 """
 Napisz moduł (klasę, pakiet, itp.), służącą do pomiaru złożoności obliczeniowej
 według wzorów na średnią arytmetyczną, wariancję,
@@ -13,6 +15,7 @@ drugi do średniego czasu wykonania.
 
 """
 
+
 class ComplexityMeasurement:
 
     def __init__(self, algo):
@@ -21,7 +24,7 @@ class ComplexityMeasurement:
     _sum_t = 0
     _sum_i = 0
     _iters: int = []
-    _times:float = []
+    _times: float = []
     avarage_i: float = 0
     avarage_t: float = 0
     variance_i: float = 0
@@ -29,16 +32,30 @@ class ComplexityMeasurement:
     std_dev_i: float = 0
     std_dev_t: float = 0
 
-    def _tracer(self, frame, event, arg):
-        return event, frame.f_code.co_name, frame.f_lineno, arg
+    def _get_count_of_iterations(self, *args):
+        mon = sys.monitoring
+        TOOL = mon.PROFILER_ID
+        count = 0
 
-    def _get_count_of_iterations(self):     
-        sys.monitoring.events.JUMP
-        self._iters.append(self.algo)
-        sys.monitoring.events
+        def on_jump(code, src, dst):
+            nonlocal count
+            if dst < src:
+                count += 1
+
+        mon.use_tool_id(TOOL, on_jump)
+        mon.register_callback(TOOL, mon.events.JUMP, on_jump)
+        mon.set_local_events(TOOL, self.algo.__code__, mon.events.JUMP)
+        try:
+            self.algo(*args)
+        finally:
+            mon.set_local_events(TOOL, self.algo.__code__, 0)
+            mon.register_callback(TOOL, mon.events.JUMP, None)
+            mon.free_tool_id(TOOL)
+        return count
 
     def _getavaragei():
         pass
+
     def measure_iterations(self):
         pass
 
@@ -52,29 +69,30 @@ class ComplexityMeasurement:
 
         return self.iters, self.times
 
-    def sum(self,iters, times):
+    def sum(self, iters, times):
         sum_i = 0
         sum_t = 0
-        for i in iters: sum_i += i
-        for t in times: sum_t += t
+        for i in iters:
+            sum_i += i
+        for t in times:
+            sum_t += t
         self._sum_i = sum_i
         self._sum_t = sum_t
         return self._sum_t, self._sum_i
 
-
-    def _avarage(self, n:int):
-        self.avarage_t = self.sum_t/n
-        self.avarage_i =  self.sum_i/n
+    def _avarage(self, n: int):
+        self.avarage_t = self.sum_t / n
+        self.avarage_i = self.sum_i / n
         return self.avarage_t, self.avarage_i
 
-    def _variance(self,n):
+    def _variance(self, n):
         sum_i: int = 0
         sum_t: float = 0
         for _ in range(n):
-            sum_i += math.pow(self._iters[_] - self.avarage_i, 2) 
+            sum_i += math.pow(self._iters[_] - self.avarage_i, 2)
             sum_t += math.pow(self._times[_] - self.avarage_t, 2)
-        self.variance_i = 1/n * sum_i
-        self.variance_t = 1/n * sum_t
+        self.variance_i = 1 / n * sum_i
+        self.variance_t = 1 / n * sum_t
 
         return self.variance_t, self.variance_i
 
