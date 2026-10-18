@@ -11,11 +11,9 @@ def tracer(frame, event, arg):
     print(event, frame.f_code.co_name, frame.f_lineno, arg)
     return tracer
 
-sys.settrace(tracer)
-print(search(43, tab))
-sys.settrace(None)
+if __name__ == "__main__":
+    sys.settrace(tracer)
+    print(search(43, tab))
+    sys.settrace(None)
 
-
-
-
-print(sys.settrace(search(43,tab)))
+    print(sys.settrace(search(43,tab)))
