@@ -18,13 +18,14 @@ drugi do średniego czasu wykonania.
 
 class ComplexityMeasurement:
 
-    def __init__(self, algo):
+    def __init__(self, algo: function, n: int):
         self.algo = algo
+        self.n = n
+        self._iters: list[int] = []
+        self._times: list[float] = []
 
     _sum_t = 0
     _sum_i = 0
-    _iters: int = []
-    _times: float = []
     avarage_i: float = 0
     avarage_t: float = 0
     variance_i: float = 0
@@ -42,7 +43,7 @@ class ComplexityMeasurement:
             if dst < src:
                 count += 1
 
-        mon.use_tool_id(TOOL, on_jump)
+        mon.use_tool_id(TOOL, "iter_counter")
         mon.register_callback(TOOL, mon.events.JUMP, on_jump)
         mon.set_local_events(TOOL, self.algo.__code__, mon.events.JUMP)
         try:
@@ -53,21 +54,15 @@ class ComplexityMeasurement:
             mon.free_tool_id(TOOL)
         return count
 
-    def _getavaragei():
-        pass
+    def measure_time_of_resolving(self, *args):
+        return timeit.timeit(lambda: self.algo(*args), number=1000)
 
-    def measure_iterations(self):
-        pass
-
-    def measure_time_of_resolving(self):
-        return timeit.timeit(self.algo()) * 1000
-
-    def _run_n_times(self, n: int) -> list:
+    def _run_n_times(self, n: int, *args) -> tuple[list[int], list[float]]:
         for i in range(n):
-            self._iters.append(self._get_count_of_iterations(self.algo))
-            self._times.append(self.measure_time_of_resolving(self.algo))
+            self._iters.append(self._get_count_of_iterations(*args))
+            self._times.append(self.measure_time_of_resolving(*args))
 
-        return self.iters, self.times
+        return self._iters, self._times
 
     def sum(self, iters, times):
         sum_i = 0
@@ -81,8 +76,8 @@ class ComplexityMeasurement:
         return self._sum_t, self._sum_i
 
     def _avarage(self, n: int):
-        self.avarage_t = self.sum_t / n
-        self.avarage_i = self.sum_i / n
+        self.avarage_t = self._sum_t / n
+        self.avarage_i = self._sum_i / n
         return self.avarage_t, self.avarage_i
 
     def _variance(self, n):
