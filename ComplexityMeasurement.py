@@ -32,6 +32,8 @@ class ComplexityMeasurement:
     variance_t: float = 0
     std_dev_i: float = 0
     std_dev_t: float = 0
+    relative_error_i: float = 0
+    relative_error_t: float = 0
 
     def _get_count_of_iterations(self, *args):
         mon = sys.monitoring
@@ -57,14 +59,61 @@ class ComplexityMeasurement:
     def measure_time_of_resolving(self, *args):
         return timeit.timeit(lambda: self.algo(*args), number=1000)
 
-    def _run_n_times(self, n: int, *args) -> tuple[list[int], list[float]]:
+    def run_n_times(self, n: int, *args) -> tuple[list[int], list[float]]:
         for i in range(n):
             self._iters.append(self._get_count_of_iterations(*args))
             self._times.append(self.measure_time_of_resolving(*args))
 
         return self._iters, self._times
 
-    def sum(self, iters, times):
+    # Read-only access to the collected measurements
+    @property
+    def iters(self) -> list[int]:
+        return self._iters
+
+    @property
+    def times(self) -> list[float]:
+        return self._times
+
+    # Computes all statistics in the required order and returns them
+    # as a dictionary. Call it after all measurements are collected.
+    def compute_stats(self) -> dict:
+        n = len(self._iters)
+        if n == 0:
+            raise ValueError("No measurements - call run_n_times first")
+
+        self._sum(self._iters, self._times)
+        self._avarage(n)
+        self._variance(n)
+        self._standard_deviation()
+        self._relative_error(n)
+
+        return {
+            "iterations": {
+                "sum": self._sum_i,
+                "average": self.avarage_i,
+                "variance": self.variance_i,
+                "standard_deviation": self.std_dev_i,
+                "relative_error": self.relative_error_i,
+            },
+            "time": {
+                "sum": self._sum_t,
+                "average": self.avarage_t,
+                "variance": self.variance_t,
+                "standard_deviation": self.std_dev_t,
+                "relative_error": self.relative_error_t,
+            },
+        }
+
+    # ------------------------------------------------------------------
+    # Statistical functions
+    # Order of computation: sum -> average -> variance
+    #                       -> standard deviation -> relative error
+    # Each step uses the results of the previous ones.
+    # ------------------------------------------------------------------
+
+    # Sum of all measurements: S = x_1 + x_2 + ... + x_n
+    def _sum(self, iters, times):
         sum_i = 0
         sum_t = 0
         for i in iters:
@@ -75,11 +124,13 @@ class ComplexityMeasurement:
         self._sum_t = sum_t
         return self._sum_t, self._sum_i
 
+    # Arithmetic mean: x_avg = S / n
     def _avarage(self, n: int):
         self.avarage_t = self._sum_t / n
         self.avarage_i = self._sum_i / n
         return self.avarage_t, self.avarage_i
 
+    # Variance: sigma^2 = (1 / n) * sum((x_k - x_avg)^2)
     def _variance(self, n):
         sum_i: int = 0
         sum_t: float = 0
@@ -91,11 +142,29 @@ class ComplexityMeasurement:
 
         return self.variance_t, self.variance_i
 
+    # Standard deviation: sigma = sqrt(sigma^2)
     def _standard_deviation(self):
         self.std_dev_i = math.sqrt(self.variance_i)
         self.std_dev_t = math.sqrt(self.variance_t)
 
         return self.std_dev_t, self.std_dev_i
+
+    # Relative error of the mean: delta = (sigma / sqrt(n)) / x_avg
+    # sigma / sqrt(n) is the standard error of the mean, so delta tells
+    # how precisely the average is known and shrinks as n grows.
+    # Multiply by 100 to get the value in percent.
+    def _relative_error(self, n: int):
+        # Avoid division by zero when the average is 0
+        if self.avarage_i != 0:
+            self.relative_error_i = (self.std_dev_i / math.sqrt(n)) / self.avarage_i
+        if self.avarage_t != 0:
+            self.relative_error_t = (self.std_dev_t / math.sqrt(n)) / self.avarage_t
+
+        return self.relative_error_t, self.relative_error_i
+
+    # ------------------------------------------------------------------
+    # End of statistical functions
+    # ------------------------------------------------------------------
 
     def to_json(self) -> str:
         results = {
@@ -106,6 +175,7 @@ class ComplexityMeasurement:
                 "average": self.avarage_i,
                 "variance": self.variance_i,
                 "standard_deviation": self.std_dev_i,
+                "relative_error": self.relative_error_i,
                 "measurements": self._iters,
             },
             "time": {
@@ -113,6 +183,7 @@ class ComplexityMeasurement:
                 "average": self.avarage_t,
                 "variance": self.variance_t,
                 "standard_deviation": self.std_dev_t,
+                "relative_error": self.relative_error_t,
                 "measurements": self._times,
             },
         }
