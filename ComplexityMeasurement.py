@@ -18,7 +18,7 @@ drugi do średniego czasu wykonania.
 
 class ComplexityMeasurement:
 
-    def __init__(self, algo: function, n: int):
+    def __init__(self, algo, n: int):
         self.algo = algo
         self.n = n
         self._iters: list[int] = []
@@ -57,7 +57,7 @@ class ComplexityMeasurement:
         return count
 
     def measure_time_of_resolving(self, *args):
-        return timeit.timeit(lambda: self.algo(*args), number=1000)
+        return timeit.timeit(lambda: self.algo(*args), number=1)
 
     def run_n_times(self, n: int, *args) -> tuple[list[int], list[float]]:
         for i in range(n):
